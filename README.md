@@ -1,4 +1,4 @@
-# PCBA跌落失效微观演示
+# PCBA跌落失效微观演示 (PCBA Drop Simulation)
 
 这是一个基于Web的交互式演示，展示了PCBA在跌落过程中BGA焊点和PCB的微观失效机理。
 
