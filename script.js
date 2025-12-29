@@ -4,6 +4,7 @@ const microCanvas = document.getElementById('microCanvas');
 const microCtx = microCanvas.getContext('2d');
 
 const btnDrop = document.getElementById('btnDrop');
+const btnAnalysis = document.getElementById('btnAnalysis');
 const btnReset = document.getElementById('btnReset');
 const failureModeSelect = document.getElementById('failureMode');
 const speedControl = document.getElementById('speedControl');
@@ -34,6 +35,7 @@ function init() {
     draw();
     
     btnDrop.addEventListener('click', startSimulation);
+    btnAnalysis.addEventListener('click', showAnalysis);
     btnReset.addEventListener('click', reset);
     failureModeSelect.addEventListener('change', () => {
         currentMode = failureModeSelect.value;
@@ -57,7 +59,7 @@ function resizeCanvas() {
 }
 
 function startSimulation() {
-    if (state !== 'IDLE') return;
+    if (state !== 'IDLE' && state !== 'ANALYSIS') return;
     
     if (currentMode.startsWith('pull')) {
         state = 'PULLING';
@@ -69,7 +71,17 @@ function startSimulation() {
     fractureOccurred = false;
     animate();
     btnDrop.disabled = true;
+    btnAnalysis.disabled = true;
     failureModeSelect.disabled = true;
+}
+
+function showAnalysis() {
+    state = 'ANALYSIS';
+    cancelAnimationFrame(animationId);
+    draw();
+    updateText('analysis');
+    btnDrop.disabled = false;
+    btnAnalysis.disabled = true;
 }
 
 function reset() {
@@ -80,6 +92,7 @@ function reset() {
     pullHeight = 0;
     fractureOccurred = false;
     btnDrop.disabled = false;
+    btnAnalysis.disabled = false;
     failureModeSelect.disabled = false;
     macroStatus.textContent = "状态: 静止";
     microStatus.textContent = "微观变化: 无";
@@ -170,6 +183,10 @@ function updateText(phase) {
         explanationText.innerHTML = "<strong>后续:</strong> PCB回弹并进行阻尼振荡。裂纹可能会在振荡中闭合，导致电路出现<strong>间歇性故障 (Intermittent Failure)</strong>。";
     } else if (phase === 'finished') {
         macroStatus.textContent = "状态: 静止 (已失效)";
+    } else if (phase === 'analysis') {
+        macroStatus.textContent = "状态: 受力分析 (Force Analysis)";
+        microStatus.textContent = "视图: 芯片俯视 (Top View)";
+        explanationText.innerHTML = "<strong>受力分析:</strong> 红色点代表焊球(抗力点)，蓝色区域代表凝胶(受力面)。<br>由于<strong>中心空旷 (Empty Center)</strong>，凝胶在中心产生的巨大吸力无法被直接抵消，而是转化为力矩，全部作用在<strong>最外圈 (Perimeter)</strong> 的焊球上。这导致边缘焊球承受了数倍于平均值的拉力。";
     }
 }
 
@@ -178,8 +195,160 @@ function draw() {
     macroCtx.clearRect(0, 0, macroCanvas.width, macroCanvas.height);
     microCtx.clearRect(0, 0, microCanvas.width, microCanvas.height);
 
-    drawMacroView();
-    drawMicroView();
+    if (state === 'ANALYSIS') {
+        drawAnalysisView();
+    } else {
+        drawMacroView();
+        drawMicroView();
+    }
+}
+
+function drawAnalysisView() {
+    // Use Macro Canvas for Top View Diagram
+    const ctx = macroCtx;
+    const w = macroCanvas.width;
+    const h = macroCanvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    // Draw Chip Outline
+    const chipW = 200;
+    const chipH = 220; // 11.5 x 13 ratio approx
+    const left = cx - chipW/2;
+    const top = cy - chipH/2;
+
+    ctx.fillStyle = '#eee';
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.fillRect(left, top, chipW, chipH);
+    ctx.strokeRect(left, top, chipW, chipH);
+
+    // Draw Solder Balls (Perimeter Array)
+    ctx.fillStyle = '#e74c3c'; // Red for stress points
+    const ballSize = 4;
+    const pitch = 12;
+    
+    // Simulate the pattern from the image (Perimeter dense, center empty)
+    // Rows: 0 to 18 approx
+    // Cols: 0 to 16 approx
+    for(let r=0; r<18; r++) {
+        for(let c=0; c<16; c++) {
+            // Logic to create empty center
+            // Keep outer 3-4 rows/cols
+            const isOuter = r < 4 || r > 13 || c < 4 || c > 11;
+            // Also some corner logic or specific pattern
+            if (isOuter) {
+                const x = left + 10 + c * pitch;
+                const y = top + 10 + r * pitch;
+                ctx.beginPath();
+                ctx.arc(x, y, ballSize, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // Draw Gel Force (Blue Gradient in Center)
+    const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, 80);
+    grad.addColorStop(0, 'rgba(52, 152, 219, 0.8)'); // Strong blue center
+    grad.addColorStop(1, 'rgba(52, 152, 219, 0.1)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(left, top, chipW, chipH);
+
+    // Annotations
+    ctx.fillStyle = '#000';
+    ctx.font = "14px Arial";
+    ctx.fillText("Gel Suction Force (Center)", cx - 80, cy);
+    
+    ctx.fillStyle = '#c0392b';
+    ctx.fillText("High Stress (Perimeter)", left - 10, top - 10);
+
+    // Draw Force Arrows
+    // Center Up
+    ctx.strokeStyle = '#3498db';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 20);
+    ctx.lineTo(cx, cy - 20);
+    ctx.lineTo(cx - 10, cy - 10);
+    ctx.moveTo(cx, cy - 20);
+    ctx.lineTo(cx + 10, cy - 10);
+    ctx.stroke();
+
+    // Edge Resistance
+    // Draw small arrows on corners pointing down (resistance)
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 2;
+    // Top Left
+    ctx.beginPath();
+    ctx.moveTo(left + 20, top + 20);
+    ctx.lineTo(left + 20, top + 40); // Down
+    ctx.stroke();
+    // Top Right
+    ctx.beginPath();
+    ctx.moveTo(left + chipW - 20, top + 20);
+    ctx.lineTo(left + chipW - 20, top + 40); // Down
+    ctx.stroke();
+    // Bottom Left
+    ctx.beginPath();
+    ctx.moveTo(left + 20, top + chipH - 40);
+    ctx.lineTo(left + 20, top + chipH - 20); // Down
+    ctx.stroke();
+    // Bottom Right
+    ctx.beginPath();
+    ctx.moveTo(left + chipW - 20, top + chipH - 40);
+    ctx.lineTo(left + chipW - 20, top + chipH - 20); // Down
+    ctx.stroke();
+
+    // --- Micro Canvas for Side Profile Analysis ---
+    const mCtx = microCtx;
+    const mw = microCanvas.width;
+    const mh = microCanvas.height;
+    const mcx = mw / 2;
+    const mcy = mh / 2;
+
+    // Draw Side Profile (Leverage Effect)
+    // PCB
+    mCtx.fillStyle = '#2E8B57';
+    mCtx.fillRect(50, mcy + 50, mw - 100, 20);
+    mCtx.fillStyle = '#fff';
+    mCtx.fillText("PCB Substrate", 60, mcy + 65);
+
+    // Chip (Bowed)
+    mCtx.beginPath();
+    mCtx.moveTo(50, mcy); // Left edge
+    mCtx.quadraticCurveTo(mcx, mcy - 30, mw - 50, mcy); // Bowed up in center
+    mCtx.lineWidth = 10;
+    mCtx.strokeStyle = '#555';
+    mCtx.stroke();
+    mCtx.fillStyle = '#000';
+    mCtx.fillText("Chip (Bowing Deformation)", mcx - 70, mcy - 40);
+
+    // Gel (Filling the gap)
+    mCtx.fillStyle = 'rgba(52, 152, 219, 0.5)';
+    mCtx.beginPath();
+    mCtx.moveTo(50, mcy);
+    mCtx.quadraticCurveTo(mcx, mcy - 30, mw - 50, mcy); // Top curve
+    mCtx.lineTo(mw - 50, mcy + 50);
+    mCtx.lineTo(50, mcy + 50);
+    mCtx.fill();
+
+    // Solder Balls (Only at edges)
+    mCtx.fillStyle = '#e74c3c';
+    // Left Ball (Stretched)
+    mCtx.fillRect(60, mcy, 10, 50);
+    // Right Ball (Stretched)
+    mCtx.fillRect(mw - 70, mcy, 10, 50);
+
+    // Force Arrows
+    // Big Blue Arrow Up in Center
+    mCtx.fillStyle = '#3498db';
+    mCtx.font = "20px Arial";
+    mCtx.fillText("↑ Gel Force", mcx - 40, mcy + 20);
+
+    // Red Arrows Down at Edges
+    mCtx.fillStyle = '#e74c3c';
+    mCtx.fillText("↓ Stress", 40, mcy - 10);
+    mCtx.fillText("↓ Stress", mw - 100, mcy - 10);
 }
 
 function animate() {
