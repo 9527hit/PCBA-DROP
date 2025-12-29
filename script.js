@@ -150,14 +150,14 @@ function updateText(phase) {
         microStatus.textContent = "微观变化: 焊点拉伸，应力集中，焊料变脆";
         explanationText.innerHTML = "<strong>0-0.5ms:</strong> PCB受到冲击发生剧烈弯曲。由于高应变率，焊料表现出<strong>脆性</strong>，无法通过形变释放应力。巨大的拉伸应力传递到界面。";
     } else if (phase === 'pulling') {
-        macroStatus.textContent = "状态: 垂直拉拔 (Vertical Pull)";
-        microStatus.textContent = "微观变化: 导热凝胶粘连，Z轴拉伸应力";
-        explanationText.innerHTML = "<strong>拆机过程:</strong> 散热器被移除时，<strong>导热凝胶</strong>的粘接力大于了焊点的结合力。整个芯片受到垂直向上的拉力，PCB基材受到巨大的Z轴张力。";
+        macroStatus.textContent = "状态: 垂直拉拔/剥离 (Pull/Peel)";
+        microStatus.textContent = "微观变化: 形状因子 S≈6.1，凝胶硬化";
+        explanationText.innerHTML = "<strong>参数代入:</strong> 凝胶厚度0.5mm，计算形状因子 <strong>S = 6.1</strong>。在此约束下，凝胶的表观刚度提升数十倍，表现出<strong>静水压力硬化</strong>效应。它不再是软胶，而是像液压油一样将拉力完整传递给芯片。";
     } else if (state === 'FRACTURE') {
         macroStatus.textContent = "状态: 达到极限";
         if (currentMode === 'pull_cratering') {
-            microStatus.textContent = "失效: 焊盘坑裂 (Pad Cratering) - 连根拔起";
-            explanationText.innerHTML = "<strong>失效瞬间:</strong> 这是一个典型的<strong>强度竞争</strong>。凝胶粘接力 > 焊点强度。由于FR4基材在Z轴方向的层间结合力最弱，焊盘带着树脂被直接拔出。";
+            microStatus.textContent = "失效: 焊盘坑裂 (Pad Cratering) - 逐排撕裂";
+            explanationText.innerHTML = "<strong>失效计算:</strong> 剥离时应力集中在最外侧一排焊点。单排焊点强度 (约100N) < 凝胶传递的剥离力。<strong>失效模式为“拉链式”逐排断裂</strong>，最终导致芯片整体脱落。";
         } else {
             microStatus.textContent = currentMode === 'imc' ? "失效: IMC层脆性断裂！" : "失效: 焊盘坑裂 (Pad Cratering)！";
             explanationText.innerHTML = currentMode === 'imc' 
