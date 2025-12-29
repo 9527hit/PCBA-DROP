@@ -13,15 +13,17 @@ const microStatus = document.getElementById('microStatus');
 const explanationText = document.getElementById('explanationText');
 
 let animationId;
-let state = 'IDLE'; // IDLE, BENDING, FRACTURED, REBOUND
+let state = 'IDLE'; // IDLE, BENDING, FRACTURED, REBOUND, PULLING
 let time = 0;
 let bendAmount = 0; // 0 to 1 (max bend)
+let pullHeight = 0; // For pull simulation
 let fractureOccurred = false;
 let currentMode = 'imc';
 
 // Configuration
 const CONFIG = {
     bendSpeed: 0.15,
+    pullSpeed: 0.5,
     reboundDamping: 0.95,
     reboundFreq: 0.3,
     maxBendY: 60
@@ -31,10 +33,16 @@ function init() {
     resizeCanvas();
     draw();
     
-    btnDrop.addEventListener('click', startDrop);
+    btnDrop.addEventListener('click', startSimulation);
     btnReset.addEventListener('click', reset);
     failureModeSelect.addEventListener('change', () => {
         currentMode = failureModeSelect.value;
+        // Update button text based on mode
+        if (currentMode.startsWith('pull')) {
+            btnDrop.textContent = "开始拆机 (Pull)";
+        } else {
+            btnDrop.textContent = "开始跌落 (Drop)";
+        }
         reset();
     });
 
@@ -48,9 +56,15 @@ function resizeCanvas() {
     // Optional: make responsive if needed, fixed for now
 }
 
-function startDrop() {
+function startSimulation() {
     if (state !== 'IDLE') return;
-    state = 'BENDING';
+    
+    if (currentMode.startsWith('pull')) {
+        state = 'PULLING';
+    } else {
+        state = 'BENDING';
+    }
+    
     time = 0;
     fractureOccurred = false;
     animate();
@@ -63,12 +77,13 @@ function reset() {
     state = 'IDLE';
     time = 0;
     bendAmount = 0;
+    pullHeight = 0;
     fractureOccurred = false;
     btnDrop.disabled = false;
     failureModeSelect.disabled = false;
     macroStatus.textContent = "状态: 静止";
     microStatus.textContent = "微观变化: 无";
-    explanationText.textContent = "点击“开始跌落”以观察微观变化。";
+    explanationText.textContent = "点击按钮以观察微观变化。";
     draw();
 }
 
@@ -103,6 +118,29 @@ function update() {
             return;
         }
         updateText('rebound');
+    } else if (state === 'PULLING') {
+        // Simulate vertical pull
+        pullHeight += CONFIG.pullSpeed * speedMult;
+        
+        // Fracture happens at a certain height
+        if (pullHeight >= 20 && !fractureOccurred) {
+            state = 'FRACTURE';
+            fractureOccurred = true;
+            setTimeout(() => {
+                state = 'PULL_FINISHED';
+            }, 500 / speedMult);
+        }
+        updateText('pulling');
+    } else if (state === 'PULL_FINISHED') {
+        // Continue pulling component away
+        pullHeight += CONFIG.pullSpeed * speedMult;
+        if (pullHeight > 100) {
+            state = 'FINISHED';
+            cancelAnimationFrame(animationId);
+            btnDrop.disabled = false;
+            failureModeSelect.disabled = false;
+            updateText('finished');
+        }
     }
 }
 
@@ -111,12 +149,21 @@ function updateText(phase) {
         macroStatus.textContent = "状态: 剧烈弯曲 (High Strain Rate)";
         microStatus.textContent = "微观变化: 焊点拉伸，应力集中，焊料变脆";
         explanationText.innerHTML = "<strong>0-0.5ms:</strong> PCB受到冲击发生剧烈弯曲。由于高应变率，焊料表现出<strong>脆性</strong>，无法通过形变释放应力。巨大的拉伸应力传递到界面。";
+    } else if (phase === 'pulling') {
+        macroStatus.textContent = "状态: 垂直拉拔 (Vertical Pull)";
+        microStatus.textContent = "微观变化: 导热凝胶粘连，Z轴拉伸应力";
+        explanationText.innerHTML = "<strong>拆机过程:</strong> 散热器被移除时，<strong>导热凝胶</strong>的粘接力大于了焊点的结合力。整个芯片受到垂直向上的拉力，PCB基材受到巨大的Z轴张力。";
     } else if (state === 'FRACTURE') {
         macroStatus.textContent = "状态: 达到极限";
-        microStatus.textContent = currentMode === 'imc' ? "失效: IMC层脆性断裂！" : "失效: 焊盘坑裂 (Pad Cratering)！";
-        explanationText.innerHTML = currentMode === 'imc' 
-            ? "<strong>失效瞬间:</strong> 脆弱的<strong>IMC层 (Cu6Sn5)</strong> 无法承受拉力，像玻璃一样发生解理断裂。裂纹瞬间贯穿。"
-            : "<strong>失效瞬间:</strong> 焊点强度高于PCB基材。铜焊盘下的<strong>树脂和玻纤</strong>被撕裂，形成弹坑状剥离。";
+        if (currentMode === 'pull_cratering') {
+            microStatus.textContent = "失效: 焊盘坑裂 (Pad Cratering) - 连根拔起";
+            explanationText.innerHTML = "<strong>失效瞬间:</strong> 这是一个典型的<strong>强度竞争</strong>。凝胶粘接力 > 焊点强度。由于FR4基材在Z轴方向的层间结合力最弱，焊盘带着树脂被直接拔出。";
+        } else {
+            microStatus.textContent = currentMode === 'imc' ? "失效: IMC层脆性断裂！" : "失效: 焊盘坑裂 (Pad Cratering)！";
+            explanationText.innerHTML = currentMode === 'imc' 
+                ? "<strong>失效瞬间:</strong> 脆弱的<strong>IMC层 (Cu6Sn5)</strong> 无法承受拉力，像玻璃一样发生解理断裂。裂纹瞬间贯穿。"
+                : "<strong>失效瞬间:</strong> 焊点强度高于PCB基材。铜焊盘下的<strong>树脂和玻纤</strong>被撕裂，形成弹坑状剥离。";
+        }
     } else if (phase === 'rebound') {
         macroStatus.textContent = "状态: 阻尼振荡回弹";
         microStatus.textContent = "微观变化: 裂纹闭合/张开 (接触不良)";
@@ -151,6 +198,74 @@ function drawMacroView() {
     const h = macroCanvas.height;
     const cy = h / 2;
 
+    if (currentMode.startsWith('pull')) {
+        // --- PULL SIMULATION DRAWING ---
+        
+        // Draw PCB (Flat or slightly bowed up)
+        ctx.beginPath();
+        ctx.moveTo(0, cy + 40);
+        // Slight bow up if pulling hard
+        const bow = Math.min(10, pullHeight * 0.5);
+        ctx.quadraticCurveTo(w/2, cy + 40 - bow, w, cy + 40);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#2E8B57'; // PCB Green
+        ctx.stroke();
+
+        // Draw Component
+        const compY = cy + 40 - 15 - pullHeight; // Moves up
+        const midX = w / 2;
+        
+        // Draw Heatsink/Case above component
+        const heatsinkY = compY - 20;
+        ctx.fillStyle = '#444'; // Dark Grey Heatsink
+        ctx.fillRect(midX - 60, heatsinkY - 30, 120, 30);
+        ctx.fillStyle = '#fff';
+        ctx.font = "10px Arial";
+        ctx.fillText("Heatsink / Case", midX - 35, heatsinkY - 12);
+
+        // Draw Thermal Gel (Stretching)
+        ctx.fillStyle = '#87CEEB'; // Light Blue Gel
+        ctx.beginPath();
+        ctx.moveTo(midX - 30, heatsinkY);
+        ctx.lineTo(midX + 30, heatsinkY);
+        // Gel stretches between heatsink and component
+        ctx.lineTo(midX + 30, compY); 
+        ctx.lineTo(midX - 30, compY);
+        ctx.fill();
+
+        // Draw Component Body
+        ctx.fillStyle = '#333';
+        ctx.fillRect(midX - 40, compY, 80, 10); 
+
+        // Draw Balls
+        // If fractured, balls stay with component or PCB?
+        // Pad Cratering: Balls stay with component, Pad rips out.
+        const ballY = compY + 10;
+        
+        ctx.fillStyle = '#C0C0C0';
+        // Left Ball
+        ctx.beginPath();
+        ctx.arc(midX - 30, ballY + 4, 4, 0, Math.PI * 2);
+        ctx.fill();
+        // Right Ball
+        ctx.beginPath();
+        ctx.arc(midX + 30, ballY + 4, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ground line
+        ctx.strokeStyle = '#aaa';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(0, h - 20);
+        ctx.lineTo(w, h - 20);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        return; // Exit macro view for pull mode
+    }
+
+    // --- DROP SIMULATION DRAWING (Original) ---
     // Draw PCB (Curve)
     ctx.beginPath();
     ctx.moveTo(0, cy);
@@ -217,6 +332,116 @@ function drawMicroView() {
     const cx = w / 2;
     const cy = h / 2;
 
+    if (currentMode.startsWith('pull')) {
+        // --- PULL MICRO VIEW ---
+        const stretch = pullHeight * 2; // Visual scale
+        
+        // 1. Component (Top) - Moves UP
+        const compY = 50 - stretch; 
+        
+        // Draw Heatsink & Gel in Micro view too? Maybe just component up.
+        // Let's show the upward force arrow
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = "20px Arial";
+        ctx.fillText("↑ Pull Force", cx - 40, compY - 10);
+
+        ctx.fillStyle = '#555';
+        ctx.fillRect(50, compY, w - 100, 80);
+        ctx.fillStyle = '#fff';
+        ctx.font = "14px Arial";
+        ctx.fillText("Component Body (UFS)", 60, compY + 30);
+
+        // 2. PCB (Bottom) - Stays fixed mostly
+        const pcbY = 250;
+        ctx.fillStyle = '#2E8B57'; // Green FR4
+        ctx.fillRect(50, pcbY, w - 100, 100);
+        
+        // Fiber weave
+        ctx.strokeStyle = '#1e5e3a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for(let i=60; i<w-60; i+=20) {
+            ctx.moveTo(i, pcbY);
+            ctx.lineTo(i+10, pcbY+100);
+        }
+        ctx.stroke();
+
+        // 3. Copper Pad & Solder
+        // In Pull Cratering: Pad moves UP with Solder
+        let padY = pcbY;
+        let ballY = compY + 80; // Bottom of component
+        
+        if (fractureOccurred) {
+            // Pad is ripped out, moves with component
+            padY = ballY + 100; // Solder height approx 100
+        } else {
+            // Stretching solder
+            // Pad is fixed at pcbY
+        }
+
+        // Let's calculate positions based on stretch
+        // Top of solder = compY + 80
+        // Bottom of solder = pcbY (if not broken) OR moves up (if broken)
+        
+        let solderTop = compY + 80;
+        let solderBottom = pcbY;
+        
+        if (fractureOccurred) {
+            solderBottom = solderTop + 100; // Fixed height solder, moving up
+            padY = solderBottom; // Pad attached to bottom of solder
+        }
+
+        // Draw Pad
+        const padX = cx - 60;
+        const padW = 120;
+        const padH = 15;
+        
+        ctx.fillStyle = '#B87333'; // Copper
+        ctx.fillRect(padX, padY, padW, padH);
+
+        // Draw Solder
+        ctx.fillStyle = '#C0C0C0';
+        ctx.beginPath();
+        
+        if (!fractureOccurred) {
+            // Stretching hourglass
+            ctx.moveTo(cx - 50, solderTop);
+            ctx.quadraticCurveTo(cx - 20, (solderTop+solderBottom)/2, cx - 50, solderBottom);
+            ctx.lineTo(cx + 50, solderBottom);
+            ctx.quadraticCurveTo(cx + 20, (solderTop+solderBottom)/2, cx + 50, solderTop);
+        } else {
+            // Broken off, normal shape but moved up
+            ctx.ellipse(cx, (solderTop+solderBottom)/2, 55, 50, 0, 0, Math.PI * 2);
+        }
+        ctx.fill();
+
+        // IMC
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(padX + 5, padY - 4, padW - 10, 4);
+
+        // Cratering Fracture
+        if (fractureOccurred) {
+            // Draw the crater in PCB
+            ctx.fillStyle = '#1a4a2e'; // Dark hole
+            ctx.beginPath();
+            ctx.ellipse(cx, pcbY + 5, 50, 8, 0, 0, Math.PI*2);
+            ctx.fill();
+
+            // Draw resin chunk on pad
+            ctx.fillStyle = '#2E8B57';
+            ctx.beginPath();
+            ctx.moveTo(padX, padY + padH);
+            for(let i=0; i<=padW; i+=10) {
+                ctx.lineTo(padX + i, padY + padH + Math.random()*10);
+            }
+            ctx.lineTo(padX + padW, padY + padH);
+            ctx.fill();
+        }
+
+        return;
+    }
+
+    // --- DROP MICRO VIEW (Original) ---
     // Scaling factor based on bendAmount for stretching effect
     // We only stretch the gap between component and PCB
     const stretch = Math.max(0, bendAmount * 20); 
