@@ -76,6 +76,7 @@ function startSimulation() {
 }
 
 function showAnalysis() {
+    console.log("Showing Analysis View");
     state = 'ANALYSIS';
     cancelAnimationFrame(animationId);
     draw();
