@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCBA跌落失效微观演示</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>PCBA跌落失效微观机理演示</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>失效模式选择：</label>
+                <select id="failureMode">
+                    <option value="imc">IMC层脆性断裂 (Solder Joint Fracture)</option>
+                    <option value="cratering">焊盘坑裂 (Pad Cratering)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="speedControl">演示速度：</label>
+                <input type="range" id="speedControl" min="10" max="200" value="50" style="width: 120px;">
+                <span id="speedDisplay">0.5x</span>
+            </div>
+            <button id="btnDrop" class="primary-btn">开始跌落 (Drop)</button>
+            <button id="btnReset" class="secondary-btn">重置 (Reset)</button>
+        </div>
+
+        <div class="simulation-area">
+            <div class="view-panel">
+                <h3>宏观视图：PCB弯曲</h3>
+                <canvas id="macroCanvas" width="400" height="200"></canvas>
+                <div class="status-text" id="macroStatus">状态: 静止</div>
+            </div>
+            <div class="view-panel">
+                <h3>微观视图：BGA焊点截面</h3>
+                <canvas id="microCanvas" width="400" height="400"></canvas>
+                <div class="micro-legend">
+                    <span class="legend-item"><span class="color-box" style="background:#555"></span>Component</span>
+                    <span class="legend-item"><span class="color-box" style="background:#C0C0C0"></span>Solder</span>
+                    <span class="legend-item"><span class="color-box" style="background:#8B4513"></span>IMC</span>
+                    <span class="legend-item"><span class="color-box" style="background:#B87333"></span>Copper Pad</span>
+                    <span class="legend-item"><span class="color-box" style="background:#2E8B57"></span>PCB (FR4)</span>
+                </div>
+                <div class="status-text" id="microStatus">微观变化: 无</div>
+            </div>
+        </div>
+
+        <div class="explanation-panel">
+            <h3>物理过程解说</h3>
+            <p id="explanationText">点击“开始跌落”以观察微观变化。</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
