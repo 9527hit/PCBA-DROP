@@ -360,16 +360,95 @@ function drawAnalysisView() {
     mCtx.font = "12px Arial";
     mCtx.fillText("Overhang", 50, mcy + 75);
 
-    // Force Arrows
-    // Big Blue Arrow Up in Center
-    mCtx.fillStyle = '#3498db';
-    mCtx.font = "20px Arial";
-    mCtx.fillText("↑ Gel Force", mcx - 40, mcy + 20);
+    // --- NEW: Simplified Force Diagram (Like Attachment) ---
+    // Draw this in the top-right corner of the macro canvas or overlay it?
+    // Let's replace the Top View with this Side View diagram if requested, 
+    // or just add it to the Micro View area which is currently showing the "Side Profile Analysis".
+    // The user asked for "a diagram similar to the attachment".
+    // The current micro view is already a side profile but maybe too complex/realistic.
+    // Let's make a clean, schematic version in the Micro Canvas, replacing the previous "Side Profile".
+    
+    // Clear Micro Canvas for the clean schematic
+    mCtx.clearRect(0, 0, mw, mh);
+    
+    const schematicY = mh / 2;
+    const schematicW = mw - 40;
+    const schematicX = 20;
+    
+    // 1. Chip (Green)
+    mCtx.fillStyle = '#2ecc71'; // Bright Green
+    mCtx.fillRect(schematicX, schematicY - 40, schematicW, 30);
+    mCtx.fillStyle = '#000';
+    mCtx.font = "16px Arial";
+    mCtx.fillText("芯片 (Chip)", schematicX + 10, schematicY - 20);
 
-    // Red Arrows Down at Edges
+    // 2. PCB (Green)
+    mCtx.fillStyle = '#27ae60'; // Darker Green
+    mCtx.fillRect(schematicX, schematicY + 20, schematicW, 30);
+    mCtx.fillStyle = '#fff';
+    mCtx.fillText("PCB", schematicX + 10, schematicY + 40);
+
+    // 3. Solder Balls (Grey) - Perimeter Array (Empty Center)
+    mCtx.fillStyle = '#7f8c8d'; // Grey
+    const ballR = 10;
+    // Left group
+    for(let i=0; i<3; i++) {
+        mCtx.beginPath();
+        mCtx.arc(schematicX + 60 + i*30, schematicY + 5, ballR, 0, Math.PI*2);
+        mCtx.fill();
+    }
+    // Right group
+    for(let i=0; i<3; i++) {
+        mCtx.beginPath();
+        mCtx.arc(schematicX + schematicW - 60 - i*30, schematicY + 5, ballR, 0, Math.PI*2);
+        mCtx.fill();
+    }
+
+    // 4. Blue Arrows (Pull Force)
+    mCtx.fillStyle = '#3498db'; // Blue
+    const arrowW = 30;
+    const arrowH = 40;
+    const arrowSpacing = (schematicW - 20) / 6;
+    
+    for(let i=0; i<6; i++) {
+        const ax = schematicX + 30 + i * arrowSpacing;
+        const ay = schematicY - 50;
+        
+        // Draw Arrow
+        mCtx.beginPath();
+        mCtx.moveTo(ax, ay);
+        mCtx.lineTo(ax - 15, ay + 15);
+        mCtx.lineTo(ax - 5, ay + 15);
+        mCtx.lineTo(ax - 5, ay + 35);
+        mCtx.lineTo(ax + 5, ay + 35);
+        mCtx.lineTo(ax + 5, ay + 15);
+        mCtx.lineTo(ax + 15, ay + 15);
+        mCtx.closePath();
+        mCtx.fill();
+    }
+
+    // 5. Overhang Annotation (Red)
+    mCtx.strokeStyle = '#e74c3c';
+    mCtx.lineWidth = 2;
+    // Left Overhang
+    mCtx.beginPath();
+    mCtx.moveTo(schematicX, schematicY + 10);
+    mCtx.lineTo(schematicX + 45, schematicY + 10); // Pointing to the gap before first ball
+    mCtx.stroke();
     mCtx.fillStyle = '#e74c3c';
-    mCtx.fillText("↓ Stress", 40, mcy - 10);
-    mCtx.fillText("↓ Stress", mw - 100, mcy - 10);
+    mCtx.font = "12px Arial";
+    mCtx.fillText("悬空区", schematicX, schematicY + 65);
+    
+    // 6. Bending/Leverage Indication (Curved Red Lines)
+    // Show that the chip corners want to bend up
+    mCtx.strokeStyle = '#e74c3c';
+    mCtx.setLineDash([5, 3]);
+    mCtx.beginPath();
+    mCtx.moveTo(schematicX, schematicY - 40);
+    mCtx.quadraticCurveTo(schematicX + 20, schematicY - 60, schematicX + 50, schematicY - 45);
+    mCtx.stroke();
+    mCtx.setLineDash([]);
+
 }
 
 function animate() {
