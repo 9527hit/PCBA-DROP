@@ -187,7 +187,7 @@ function updateText(phase) {
     } else if (phase === 'analysis') {
         macroStatus.textContent = "状态: 受力分析 (Force Analysis)";
         microStatus.textContent = "视图: 芯片俯视 (Top View)";
-        explanationText.innerHTML = "<strong>受力分析:</strong> 红色点代表焊球(抗力点)，蓝色区域代表凝胶(受力面)。<br>由于<strong>中心空旷 (Empty Center)</strong>，凝胶在中心产生的巨大吸力无法被直接抵消，而是转化为力矩，全部作用在<strong>最外圈 (Perimeter)</strong> 的焊球上。这导致边缘焊球承受了数倍于平均值的拉力。";
+        explanationText.innerHTML = "<strong>悬空区 (Overhang) 效应:</strong> UFS芯片边缘没有锡球，存在显著的悬空区域。<br>凝胶粘接了整个芯片底面（包括悬空区）。当凝胶拉动悬空区时，它就像一个<strong>撬棍 (Crowbar)</strong>，以最外圈焊球为支点，产生额外的<strong>剥离力矩</strong>。这进一步加剧了边缘焊球的断裂风险。";
     }
 }
 
@@ -262,6 +262,12 @@ function drawAnalysisView() {
     
     ctx.fillStyle = '#c0392b';
     ctx.fillText("High Stress (Perimeter)", left - 10, top - 10);
+    
+    // Add text about Overhang
+    ctx.fillStyle = '#d35400';
+    ctx.font = "12px Arial";
+    ctx.fillText("Overhang (悬空区)", left - 40, top + chipH/2);
+    ctx.fillText("Leverage Arm", left - 40, top + chipH/2 + 15);
 
     // Draw Force Arrows
     // Center Up
@@ -333,12 +339,26 @@ function drawAnalysisView() {
     mCtx.lineTo(50, mcy + 50);
     mCtx.fill();
 
-    // Solder Balls (Only at edges)
+    // Solder Balls (Only at edges - but indented)
+    // UFS balls are NOT at the very edge. There is an overhang.
+    // Let's move balls inward to show overhang.
+    const overhang = 30; 
     mCtx.fillStyle = '#e74c3c';
     // Left Ball (Stretched)
-    mCtx.fillRect(60, mcy, 10, 50);
+    mCtx.fillRect(60 + overhang, mcy + 5, 10, 45); // Moved in
     // Right Ball (Stretched)
-    mCtx.fillRect(mw - 70, mcy, 10, 50);
+    mCtx.fillRect(mw - 70 - overhang, mcy + 5, 10, 45); // Moved in
+
+    // Draw Overhang Annotation
+    mCtx.strokeStyle = '#d35400';
+    mCtx.lineWidth = 2;
+    mCtx.beginPath();
+    mCtx.moveTo(50, mcy + 60);
+    mCtx.lineTo(60 + overhang, mcy + 60);
+    mCtx.stroke();
+    mCtx.fillStyle = '#d35400';
+    mCtx.font = "12px Arial";
+    mCtx.fillText("Overhang", 50, mcy + 75);
 
     // Force Arrows
     // Big Blue Arrow Up in Center
