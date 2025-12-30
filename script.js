@@ -168,16 +168,13 @@ function updateText(phase) {
         microStatus.textContent = "微观变化: 形状因子 S≈6.1，凝胶硬化";
         explanationText.innerHTML = "<strong>参数代入:</strong> 凝胶厚度0.5mm，计算形状因子 <strong>S = 6.1</strong>。在此约束下，凝胶的表观刚度提升数十倍，表现出<strong>静水压力硬化</strong>效应。它不再是软胶，而是像液压油一样将拉力完整传递给芯片。";
     } else if (state === 'FRACTURE') {
-        macroStatus.textContent = "状态: 达到极限";
-        if (currentMode === 'pull_cratering') {
-            microStatus.textContent = "失效: 焊盘坑裂 (Pad Cratering) - 逐排撕裂";
-            explanationText.innerHTML = "<strong>失效计算:</strong> 剥离时应力集中在最外侧一排焊点。单排焊点强度 (约100N) < 凝胶传递的剥离力。<strong>失效模式为“拉链式”逐排断裂</strong>，最终导致芯片整体脱落。";
-        } else {
-            microStatus.textContent = currentMode === 'imc' ? "失效: IMC层脆性断裂！" : "失效: 焊盘坑裂 (Pad Cratering)！";
-            explanationText.innerHTML = currentMode === 'imc' 
-                ? "<strong>失效瞬间:</strong> 脆弱的<strong>IMC层 (Cu6Sn5)</strong> 无法承受拉力，像玻璃一样发生解理断裂。裂纹瞬间贯穿。"
-                : "<strong>失效瞬间:</strong> 焊点强度高于PCB基材。铜焊盘下的<strong>树脂和玻纤</strong>被撕裂，形成弹坑状剥离。";
-        }
+        macroStatus.textContent = "状态: 达到极限 - 混合失效";
+        // Update to reflect the user's specific observation
+        microStatus.textContent = "失效: 独立焊盘坑裂 + 大铜皮IMC断裂";
+        explanationText.innerHTML = "<strong>失效模式观测 (Failure Observation):</strong><br>" +
+            "1. <strong>独立焊盘 (Signal Pads):</strong> 结合力较弱，发生<strong>焊盘坑裂 (Pad Cratering)</strong>，焊盘随芯片被拔起。<br>" +
+            "2. <strong>大铜皮焊盘 (GND/Power):</strong> 锚固力强，焊盘留于PCB，应力导致<strong>PCB侧IMC层脆性断裂</strong>。<br>" +
+            "<strong>结论:</strong> 垂直拉力超过了两种界面的极限强度。";
     } else if (phase === 'rebound') {
         macroStatus.textContent = "状态: 阻尼振荡回弹";
         microStatus.textContent = "微观变化: 裂纹闭合/张开 (接触不良)";
@@ -268,6 +265,17 @@ function drawAnalysisView() {
     ctx.font = "12px Arial";
     ctx.fillText("Overhang (悬空区)", left - 40, top + chipH/2);
     ctx.fillText("Leverage Arm", left - 40, top + chipH/2 + 15);
+
+    // NEW: Failure Mode Annotations
+    ctx.fillStyle = '#333';
+    ctx.font = "bold 12px Arial";
+    ctx.fillText("失效模式 (Failure Mode):", left + chipW + 10, top + 20);
+    ctx.font = "11px Arial";
+    ctx.fillStyle = '#555';
+    ctx.fillText("1. 独立焊盘: 坑裂 (Pad Cratering)", left + chipW + 10, top + 40);
+    ctx.fillText("   (Pad pulled with chip)", left + chipW + 10, top + 55);
+    ctx.fillText("2. 大铜皮: IMC断裂 (IMC Fracture)", left + chipW + 10, top + 75);
+    ctx.fillText("   (Pad stays on PCB)", left + chipW + 10, top + 90);
 
     // Draw Force Arrows
     // Center Up
