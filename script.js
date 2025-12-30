@@ -187,7 +187,7 @@ function updateText(phase) {
     } else if (phase === 'analysis') {
         macroStatus.textContent = "状态: 受力分析 (Force Analysis)";
         microStatus.textContent = "视图: 芯片俯视 (Top View)";
-        explanationText.innerHTML = "<strong>悬空区 (Overhang) 效应:</strong> UFS芯片边缘没有锡球，存在显著的悬空区域。<br>凝胶粘接了整个芯片底面（包括悬空区）。当凝胶拉动悬空区时，它就像一个<strong>撬棍 (Crowbar)</strong>，以最外圈焊球为支点，产生额外的<strong>剥离力矩</strong>。这进一步加剧了边缘焊球的断裂风险。";
+        explanationText.innerHTML = "<strong>参数确认:</strong> 锡球直径 <strong>0.33mm</strong> (153 balls)。<br><strong>悬空区 (Overhang) 效应:</strong> UFS芯片边缘没有锡球，存在显著的悬空区域。<br>凝胶粘接了整个芯片底面（包括悬空区）。当凝胶拉动悬空区时，它就像一个<strong>撬棍 (Crowbar)</strong>，以最外圈焊球为支点，产生额外的<strong>剥离力矩</strong>。这进一步加剧了边缘焊球的断裂风险。";
     }
 }
 
@@ -397,6 +397,10 @@ function drawAnalysisView() {
         mCtx.arc(schematicX + 60 + i*30, schematicY + 5, ballR, 0, Math.PI*2);
         mCtx.fill();
     }
+    // Label for Ball Size
+    mCtx.fillStyle = '#555';
+    mCtx.font = "10px Arial";
+    mCtx.fillText("Ø0.33mm", schematicX + 60, schematicY + 25);
     // Right group
     for(let i=0; i<3; i++) {
         mCtx.beginPath();
